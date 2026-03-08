@@ -3,6 +3,8 @@
 **Argentine exchange rates for AI agents.**
 
 [![npm version](https://img.shields.io/npm/v/@dan1d/dolar-mcp)](https://www.npmjs.com/package/@dan1d/dolar-mcp)
+[![tests](https://img.shields.io/github/actions/workflow/status/dan1d/dolar-mcp/ci.yml?label=tests)](https://github.com/dan1d/dolar-mcp/actions)
+[![npm downloads](https://img.shields.io/npm/dm/@dan1d/dolar-mcp)](https://www.npmjs.com/package/@dan1d/dolar-mcp)
 [![license](https://img.shields.io/npm/l/@dan1d/dolar-mcp)](./LICENSE)
 
 MCP server that gives AI agents real-time access to Argentine exchange rates via [DolarAPI](https://dolarapi.com). Dollar blue, oficial, MEP, CCL, crypto — plus currency conversion and spread calculator.
@@ -142,4 +144,4 @@ All data comes from [DolarAPI](https://dolarapi.com), a free public API for Arge
 
 ## License
 
-MIT
+[MIT](./LICENSE) -- by [dan1d](https://dan1d.dev/)
