@@ -1,6 +1,6 @@
 {
   "name": "@dan1d/dolar-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Argentine exchange rates MCP server. Dollar blue, oficial, CCL, crypto and all currencies via DolarAPI.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
