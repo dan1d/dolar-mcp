@@ -13,6 +13,10 @@ No API key required.
 
 [npm](https://www.npmjs.com/package/@dan1d/dolar-mcp) | [GitHub](https://github.com/dan1d/dolar-mcp)
 
+<a href="https://glama.ai/mcp/servers/dan1d/dolar-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/dan1d/dolar-mcp/badge" alt="dolar-mcp MCP server" />
+</a>
+
 ---
 
 ## Quick Start
