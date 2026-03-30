@@ -70,6 +70,10 @@ Add to `.cursor/mcp.json`:
 
 ---
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/dan1d-dolar-mcp).
+
 ## Available Tools
 
 | Tool | Description |
