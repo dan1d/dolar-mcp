@@ -1,115 +1,81 @@
+import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
 import { createDolarTools } from "./index.js";
+import { ConvertSchema, GetCurrencySchema, GetDollarSchema, GetSpreadSchema, DOLLAR_TYPES } from "./schemas.js";
+
+// Resolves to the repo root from dist/ (runtime) and from src/ (tests) alike.
+const { version: PACKAGE_VERSION } = createRequire(__filename)("../package.json") as { version: string };
+
+type ToolResult = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
+
+/** Shared result/error envelope for every tool: JSON on success, message + isError on failure. */
+function wrap<P>(fn: (params: P) => Promise<unknown>): (params: P) => Promise<ToolResult> {
+  return async (params) => {
+    try {
+      const result = await fn(params);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { content: [{ type: "text", text: message }], isError: true };
+    }
+  };
+}
 
 export function createMcpServer() {
   const { tools } = createDolarTools();
 
-  const server = new McpServer({
-    name: "dolar-mcp",
-    version: "1.0.0",
-  });
+  const server = new McpServer({ name: "dolar-mcp", version: PACKAGE_VERSION });
 
-  server.tool(
+  server.registerTool(
     "get_all_dollars",
-    "Get all Argentine dollar exchange rates: blue, oficial, bolsa (MEP), contado con liqui (CCL), cripto, mayorista, and tarjeta. Returns buy/sell prices.",
-    {},
-    async () => {
-      try {
-        const result = await tools.get_all_dollars();
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text", text: message }], isError: true };
-      }
+    {
+      description:
+        "Get all Argentine dollar exchange rates: blue, oficial, bolsa (MEP), contado con liqui (CCL), cripto, mayorista, and tarjeta. Returns buy/sell prices.",
     },
+    wrap(() => tools.get_all_dollars()),
   );
 
-  server.tool(
+  server.registerTool(
     "get_dollar",
-    "Get a specific dollar exchange rate. Types: blue, oficial, bolsa, contadoconliqui, cripto, mayorista, tarjeta.",
     {
-      type: z.string().describe("Dollar type: blue, oficial, bolsa, contadoconliqui, cripto, mayorista, tarjeta"),
+      description: `Get a specific dollar exchange rate. Types: ${DOLLAR_TYPES.join(", ")}.`,
+      inputSchema: GetDollarSchema.shape,
     },
-    async (params) => {
-      try {
-        const result = await tools.get_dollar(params);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text", text: message }], isError: true };
-      }
-    },
+    wrap(tools.get_dollar),
   );
 
-  server.tool(
+  server.registerTool(
     "get_all_currencies",
-    "Get all foreign currency exchange rates vs ARS (EUR, BRL, UYU, CLP, etc.).",
-    {},
-    async () => {
-      try {
-        const result = await tools.get_all_currencies();
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text", text: message }], isError: true };
-      }
-    },
+    { description: "Get all foreign currency exchange rates vs ARS (EUR, BRL, UYU, CLP, etc.)." },
+    wrap(() => tools.get_all_currencies()),
   );
 
-  server.tool(
+  server.registerTool(
     "get_currency",
-    "Get exchange rate for a specific foreign currency vs ARS.",
     {
-      currency: z.string().describe("Currency code: EUR, BRL, UYU, CLP, COP, PEN, MXN, etc."),
+      description: "Get exchange rate for a specific foreign currency vs ARS.",
+      inputSchema: GetCurrencySchema.shape,
     },
-    async (params) => {
-      try {
-        const result = await tools.get_currency(params);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text", text: message }], isError: true };
-      }
-    },
+    wrap(tools.get_currency),
   );
 
-  server.tool(
+  server.registerTool(
     "convert",
-    "Convert an amount between ARS and any currency or dollar type. At least one side must be ARS.",
     {
-      amount: z.number().describe("Amount to convert"),
-      from: z.string().describe("Source currency/dollar type (e.g. USD, blue, EUR, ARS)"),
-      to: z.string().optional().describe("Target currency (default: ARS)"),
-      use_buy: z.boolean().optional().describe("Use buy rate instead of sell rate (default: false)"),
+      description:
+        "Convert an amount between ARS and any currency or dollar type. At least one side must be ARS. Uses the sell (venta) rate unless use_buy is set.",
+      inputSchema: ConvertSchema.shape,
     },
-    async (params) => {
-      try {
-        const result = await tools.convert(params);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text", text: message }], isError: true };
-      }
-    },
+    wrap(tools.convert),
   );
 
-  server.tool(
+  server.registerTool(
     "get_spread",
-    "Calculate the spread (difference) between two dollar types. E.g. blue vs oficial.",
     {
-      type_a: z.string().describe("First dollar type (e.g. oficial)"),
-      type_b: z.string().describe("Second dollar type (e.g. blue)"),
+      description: "Calculate the spread (difference) between two dollar types. E.g. blue vs oficial.",
+      inputSchema: GetSpreadSchema.shape,
     },
-    async (params) => {
-      try {
-        const result = await tools.get_spread(params);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text", text: message }], isError: true };
-      }
-    },
+    wrap(tools.get_spread),
   );
 
   return server;

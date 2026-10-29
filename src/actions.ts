@@ -1,113 +1,86 @@
 import { DolarApiClient } from "./client.js";
+import { DOLLAR_TYPES } from "./schemas.js";
 import type { GetDollarParams, GetCurrencyParams, ConvertParams, GetSpreadParams } from "./schemas.js";
 
-interface DollarRate {
+export interface Rate {
   moneda: string;
   casa: string;
   nombre: string;
-  compra: number;
-  venta: number;
+  compra: number | null;
+  venta: number | null;
   fechaActualizacion: string;
 }
 
-interface CurrencyRate {
-  moneda: string;
-  casa: string;
-  nombre: string;
-  compra: number;
-  venta: number;
-  fechaActualizacion: string;
+const DOLLAR_TYPE_SET = new Set<string>(DOLLAR_TYPES);
+
+/** DolarAPI paths are case-sensitive and lowercase: /v1/dolares/blue, /v1/cotizaciones/eur. */
+function pathCode(code: string): string {
+  return encodeURIComponent(code.trim().toLowerCase());
+}
+
+function ratePath(code: string): string {
+  const lower = code.trim().toLowerCase();
+  return DOLLAR_TYPE_SET.has(lower) ? `/v1/dolares/${pathCode(lower)}` : `/v1/cotizaciones/${pathCode(lower)}`;
+}
+
+function requireRate(value: unknown, side: "compra" | "venta", code: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`DolarAPI returned no usable ${side} rate for ${code} (${String(value)})`);
+  }
+  return value;
 }
 
 export async function getAllDollars(client: DolarApiClient): Promise<unknown> {
-  return client.get<DollarRate[]>("/v1/dolares");
+  return client.get<Rate[]>("/v1/dolares");
 }
 
-export async function getDollar(
-  client: DolarApiClient,
-  params: GetDollarParams
-): Promise<unknown> {
-  return client.get<DollarRate>(`/v1/dolares/${encodeURIComponent(params.type)}`);
+export async function getDollar(client: DolarApiClient, params: GetDollarParams): Promise<unknown> {
+  return client.get<Rate>(`/v1/dolares/${pathCode(params.type)}`);
 }
 
 export async function getAllCurrencies(client: DolarApiClient): Promise<unknown> {
-  return client.get<CurrencyRate[]>("/v1/cotizaciones");
+  return client.get<Rate[]>("/v1/cotizaciones");
 }
 
-export async function getCurrency(
-  client: DolarApiClient,
-  params: GetCurrencyParams
-): Promise<unknown> {
-  return client.get<CurrencyRate>(`/v1/cotizaciones/${encodeURIComponent(params.currency)}`);
+export async function getCurrency(client: DolarApiClient, params: GetCurrencyParams): Promise<unknown> {
+  return client.get<Rate>(`/v1/cotizaciones/${pathCode(params.currency)}`);
 }
 
-export async function convert(
-  client: DolarApiClient,
-  params: ConvertParams
-): Promise<unknown> {
-  const fromUpper = params.from.toUpperCase();
-  const toUpper = (params.to ?? "ARS").toUpperCase();
+export async function convert(client: DolarApiClient, params: ConvertParams): Promise<unknown> {
+  const from = params.from.trim().toUpperCase();
+  const to = (params.to ?? "ARS").trim().toUpperCase();
 
-  // Determine which rate to fetch
-  let rate: number;
-
-  if (fromUpper === "ARS" || toUpper === "ARS") {
-    // One side is ARS — fetch the other side's rate
-    const nonArs = fromUpper === "ARS" ? toUpper : fromUpper;
-
-    // Check if it's a dollar type (blue, oficial, etc.) or a currency (EUR, BRL)
-    const dollarTypes = ["blue", "oficial", "bolsa", "contadoconliqui", "cripto", "mayorista", "tarjeta"];
-    const isDollarType = dollarTypes.includes(nonArs.toLowerCase());
-
-    if (isDollarType) {
-      const data = await client.get<DollarRate>(`/v1/dolares/${nonArs.toLowerCase()}`);
-      rate = params.use_buy ? data.compra : data.venta;
-    } else {
-      const data = await client.get<CurrencyRate>(`/v1/cotizaciones/${nonArs}`);
-      rate = params.use_buy ? data.compra : data.venta;
-    }
-
-    // Convert
-    if (fromUpper === "ARS") {
-      // ARS → other: divide by rate
-      return {
-        from: fromUpper,
-        to: nonArs,
-        rate,
-        amount: params.amount,
-        converted: Number((params.amount / rate).toFixed(2)),
-      };
-    } else {
-      // other → ARS: multiply by rate
-      return {
-        from: nonArs,
-        to: "ARS",
-        rate,
-        amount: params.amount,
-        converted: Number((params.amount * rate).toFixed(2)),
-      };
-    }
+  if (from !== "ARS" && to !== "ARS") {
+    throw new Error("At least one side of the conversion must be ARS. Use 'from' or 'to' as ARS.");
+  }
+  if (from === "ARS" && to === "ARS") {
+    return { from, to, rate: 1, amount: params.amount, converted: params.amount };
   }
 
-  throw new Error("At least one side of the conversion must be ARS. Use 'from' or 'to' as ARS.");
+  const fromArs = from === "ARS";
+  const other = fromArs ? to : from;
+  const data = await client.get<Rate>(ratePath(other));
+  const side = params.use_buy ? "compra" : "venta";
+  const rate = requireRate(data[side], side, other);
+  const converted = fromArs ? params.amount / rate : params.amount * rate;
+
+  return { from, to, rate, amount: params.amount, converted: Number(converted.toFixed(2)) };
 }
 
-export async function getSpread(
-  client: DolarApiClient,
-  params: GetSpreadParams
-): Promise<unknown> {
+export async function getSpread(client: DolarApiClient, params: GetSpreadParams): Promise<unknown> {
   const [a, b] = await Promise.all([
-    client.get<DollarRate>(`/v1/dolares/${encodeURIComponent(params.type_a)}`),
-    client.get<DollarRate>(`/v1/dolares/${encodeURIComponent(params.type_b)}`),
+    client.get<Rate>(`/v1/dolares/${pathCode(params.type_a)}`),
+    client.get<Rate>(`/v1/dolares/${pathCode(params.type_b)}`),
   ]);
 
-  const spreadVenta = b.venta - a.venta;
-  const spreadPercent = ((spreadVenta / a.venta) * 100);
+  const ventaA = requireRate(a.venta, "venta", params.type_a);
+  const ventaB = requireRate(b.venta, "venta", params.type_b);
+  const spreadVenta = ventaB - ventaA;
 
   return {
     type_a: { name: a.nombre, venta: a.venta, compra: a.compra },
     type_b: { name: b.nombre, venta: b.venta, compra: b.compra },
     spread_venta: Number(spreadVenta.toFixed(2)),
-    spread_percent: Number(spreadPercent.toFixed(2)),
+    spread_percent: Number(((spreadVenta / ventaA) * 100).toFixed(2)),
   };
 }

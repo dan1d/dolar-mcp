@@ -78,7 +78,7 @@ Add to `.cursor/mcp.json`:
 | `get_dollar` | Get a specific dollar type rate. Types: `blue`, `oficial`, `bolsa`, `contadoconliqui`, `cripto`, `mayorista`, `tarjeta`. |
 | `get_all_currencies` | Get all foreign currency exchange rates vs ARS (EUR, BRL, UYU, CLP, etc.). |
 | `get_currency` | Get exchange rate for a specific foreign currency vs ARS. |
-| `convert` | Convert an amount between ARS and any currency or dollar type. At least one side must be ARS. Supports `use_buy` flag for buy rate. |
+| `convert` | Convert an amount between ARS and any currency or dollar type. At least one side must be ARS. Uses the sell (`venta`) rate; `use_buy: true` switches to the buy (`compra`) rate in either direction. Codes are case-insensitive (`EUR`, `eur`, `Blue`). |
 | `get_spread` | Calculate the spread (difference) between two dollar types, e.g. blue vs oficial. Returns absolute and percentage spread. |
 
 ---

@@ -43,4 +43,7 @@ export type {
   GetCurrencyParams,
   ConvertParams,
   GetSpreadParams,
+  DollarType,
 } from "./schemas.js";
+export { DOLLAR_TYPES, GetDollarSchema, GetCurrencySchema, ConvertSchema, GetSpreadSchema } from "./schemas.js";
+export type { Rate } from "./actions.js";
