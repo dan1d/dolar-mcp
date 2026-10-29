@@ -17,7 +17,7 @@
     "LICENSE"
   ],
   "bin": {
-    "dolar-mcp": "./bin/mcp-server.mjs"
+    "dolar-mcp": "bin/mcp-server.mjs"
   },
   "scripts": {
     "build": "tsc",
@@ -29,7 +29,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dan1d/dolar-mcp.git"
+    "url": "git+https://github.com/dan1d/dolar-mcp.git"
   },
   "engines": {
     "node": ">=18"
